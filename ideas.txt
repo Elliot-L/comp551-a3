@@ -1,0 +1,14 @@
+Main Idea: use transfer learning
+-> use a baseline CNN?
+-> use a baseline CNN architecture for Inception, YOLO, MobileNet, googLeNet w/o transfer learning
+
+Stretch Idea: use feature-extraction vectors from CNNs as input to some other models
+-> SVM
+-> some other classifiers
+
+Stretch Idea: ensemble methods
+
+Meet on Friday
+-> brainstorming on transfer learning, MNIST, and ensemble methods
+-> Elliot: work on Inception
+-> Samy: work on YOLO
