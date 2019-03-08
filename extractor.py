@@ -8,7 +8,7 @@ from skimage.util import invert
 from skimage.transform import resize
 
 
-def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=4, hard_threshold_denoise=False ):
+def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=4 ):
     """
     Finds contours in input image and returns the largest bounding box in the image.
 
@@ -16,14 +16,21 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
 
         arr: numpy array of values in range [ 0, 255 ].
 
-        digit_color_threshold: 
+        digit_color_threshold: "level" arg to pass onto skimage.measure.find_contours.
+
+        output_dim: the dimension of the output array (uses skimage.transform.resize).
+
+        bbox_offset: number representing the width of the margin surrounding the bounding box in the output array (in pixels).
+
+    Returns:
+
+        img_arr[ xmin:xmax, ymin:ymax ]: subarray of input arr containing the largest bounding box, resized to shape=( output_dim x output_dim ).
+
+        ( xmin, xmax ), ( ymin, ymax ): two tuples representing the corners of the largest bounding box.
     """
 
     # rescales image from [ 0, 255 ] -> [ 0.0, 1.0 ]
     img_arr = np.copy( arr ) / 255
-
-    if hard_threshold_denoise:
-        img_arr = np.array( arr > digit_color_threshold ) 
     
     # contour_vertices is a list of [ y, x ] arrays, where y and x are floats
     contour_vertices = find_contours( img_arr, digit_color_threshold )
@@ -51,7 +58,7 @@ if __name__ == '__main__':
         data = pickle.load( handle )
 
     test_img = data[0]
-    dom_dig, xpoints, ypoints = cut_out_dom_bbox( test_img, hard_threshold_denoise=True )
+    dom_dig, xpoints, ypoints = cut_out_dom_bbox( test_img )
 
     fig = plt.figure()
     ax = fig.subplots( nrows=1, ncols=2 )
