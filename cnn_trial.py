@@ -2,14 +2,17 @@
 
 from __future__ import print_function
 
-import argparse, random, torch
+import argparse, random, torch, torchvision
 import torch.nn.functional as F
+import matplotlib.pyplot as plt  
 
-from tqdm import tqdm
+from torchvision import transforms
 from torch.utils.data import DataLoader, TensorDataset
 
+# local files
 from data_loader import load_training_data, load_training_labels
 from some_model_classes import *
+from logger import Logger
 
 def shuffle_data_and_labels( data_tensor:torch.tensor, labels_tensor:torch.tensor, seed ):
     """
@@ -46,9 +49,19 @@ def shuffle_data_and_labels( data_tensor:torch.tensor, labels_tensor:torch.tenso
 
     return training_data, training_labels
 
-def main( cli_args, device, shuffle=True, verbose=True ):
+def accuracy( output_layer:torch.tensor, yb:torch.tensor ):
+    ml_preds = torch.argmax( output_layer, dim=1 )
+    return ( ml_preds == yb.long() ).float().mean()
+
+def main( cli_args, device, logdir=os.path.join( os.getcwd(), 'logs' ), shuffle=True, verbose=True ):
+
+    logger = Logger( logdir )
     
-    
+    plt.ion()
+    fig = plt.figure()
+    ax = fig.subplots( nrows=1, ncols=1 )
+    line1, = ax.plot( [0.0]*100, [0.0]*100, 'r-' )
+     
     training_data = load_training_data( cli_args.training_dataset_path, as_tensor=True )    
     training_labels = load_training_labels( cli_args.training_labels_path, as_tensor=True )
     tensor_dataset = TensorDataset( training_data, training_labels )
@@ -64,12 +77,12 @@ def main( cli_args, device, shuffle=True, verbose=True ):
     )
 
     if verbose:
-        print( "data has been loaded")
+        print( "data has been loaded" )
 
     model = Mnist_CNN( ).to( device )
     
     # parametize this
-    optimizer = optim.SGD( 
+    optimizer = optim.SGD( # Adam
         model.parameters(), 
         lr=args.lr, 
         momentum=args.momentum 
@@ -81,7 +94,7 @@ def main( cli_args, device, shuffle=True, verbose=True ):
     if verbose:
         print( "model, optimizer, and criterion have been defined" )
 
-    losses = []
+    losses, accuracies = [], []
     if verbose:
         print( "starting the run!" )
 
@@ -92,18 +105,41 @@ def main( cli_args, device, shuffle=True, verbose=True ):
             # unsqueeze(0) adds a dimension in the leftmost position to deal with the Channels argument of the Conv2d layers
             unsqzd_di = data_instance.unsqueeze( 0 )
             preds = model( unsqzd_di ) 
-            # max_class_vals, max_class_inds = torch.max( preds, 1 )
             loss = criterion( preds, data_label.long() ) # the .long typecast is a bandaid fix, idfk wtf is happening 
             losses.append( loss )
+
+            acc = accuracy( preds, data_label )
+            accuracies.append( acc )
             loss.backward()
+
             optimizer.step()
-            optimizer.zero_grad()
+            optimizer.zero_grad() # should this be here, or indented -1?
 
             if batchidx % cli_args.log_interval == 0:
-                print( f"training epoch {epoch} / {cli_args.epochs}, batch #{batchidx} / {training_data.shape[0] // batch_size}\nLoss:\t{loss}\n" )
+                print( f"training epoch {epoch} / {cli_args.epochs}, batch #{batchidx} / {training_data.shape[0] // batch_size}\nLoss:\t{losses[-1]},\t\tAcc:\t{accuracies[-1]}\n" )
+        
+                # ================================================================== #
+                #                        Tensorboard Logging                         #
+                # ================================================================== #
 
-            
-            
+                # 1. Log scalar values (scalar summary)
+                info = { 'loss': float( loss ), 'accuracy': float( acc ) }
+
+                for tag, value in info.items():
+                    logger.scalar_summary(tag, value, batchidx+1)
+
+                # 2. Log values and gradients of the parameters (histogram summary)
+                for tag, value in model.named_parameters():
+                    tag = tag.replace('.', '/')
+                    logger.histo_summary(tag, value.data.cpu().numpy(), batchidx+1)
+                    logger.histo_summary(tag+'/grad', value.grad.data.cpu().numpy(), batchidx+1)
+
+                # 3. Log training images (image summary)
+                info = { 'images': data_instance.view(-1, 64, 64)[:10].cpu().numpy() }
+
+                for tag, images in info.items():
+                    logger.image_summary(tag, images, batchidx+1)
+
 if __name__ == '__main__':
     # Training settings; I kept mostly the same names as those
     # in mnist_example_cnn.py for ease of comparison, but added arguments
@@ -122,7 +158,7 @@ if __name__ == '__main__':
     parser.add_argument( '--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)' )
     parser.add_argument( '--lr', type=float, default=10E-03, metavar='LR',
-                        help='learning rate (default: 10E-04)' )
+                        help='learning rate (default: 10E-03)' )
     parser.add_argument( '--momentum', type=float, default=0.5, metavar='M',
                         help='SGD momentum (default: 0.5)' )
     parser.add_argument( '--no-cuda', action='store_true', default=True,

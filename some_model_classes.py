@@ -28,7 +28,6 @@ class MNIST_exNet( nn.Module ):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
     
-
 class Basic_ConvNet(nn.Module):
     """
     Convolutional neural network (two convolutional layers),
@@ -72,7 +71,7 @@ class Mnist_CNN(nn.Module):
         xb = F.relu(self.conv1(xb))
         xb = F.relu(self.conv2(xb))
         xb = F.relu(self.conv3(xb))
-        xb = F.avg_pool2d(xb, 6)
+        xb = F.avg_pool2d(xb, 6) # maxpool
         return xb.view(-1, xb.size(1))
 
 class Basic_NeuralNet(nn.Module):
