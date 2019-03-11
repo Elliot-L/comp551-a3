@@ -52,7 +52,7 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
     xmax += int( bbox_offset/2 )
     ymax += int( bbox_offset/2 )
     if as_tensor:
-        return torch.tensor( resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax ) )
+        return torch.tensor( resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ) ), ( xmin, xmax ), ( ymin, ymax ) 
     else:
         return resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax )
     
