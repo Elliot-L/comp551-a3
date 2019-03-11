@@ -110,6 +110,7 @@ class Mnist_CNN(nn.Module):
 class Basic_NeuralNet(nn.Module):
     """
     Basic FC FF NN. 
+    SC tried this model with 5000 steps, never reached an accuracy > 0.2.
     source: https://github.com/yunjey/pytorch-tutorial/blob/master/tutorials/01-basics/feedforward_neural_network/main.py#L37-L49
     """
     def __init__(self, input_size, hidden_size, num_classes):
