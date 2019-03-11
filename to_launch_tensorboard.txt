@@ -1,0 +1,10 @@
+Downloading package:
+https://tensorboardx.readthedocs.io/en/latest/tensorboard.html
+
+Opening the TensorBoard:
+To run the TensorBoard, open a new terminal and run the command below. Then, open http://localhost:6006/ on your web browser.
+```bash
+$ tensorboard --logdir='./logs' --port=6006
+```
+or (as per https://stackoverflow.com/questions/44175037/cant-open-tensorboard-0-0-0-06006-or-localhost6006 ) use 
+tensorboard --logdir='./logs' --host=127.0.0.1
