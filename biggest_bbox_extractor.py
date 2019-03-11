@@ -1,4 +1,4 @@
-import pickle 
+import pickle, torch
 import matplotlib.pyplot as plt
 import numpy as np 
 
@@ -8,7 +8,7 @@ from skimage.util import invert
 from skimage.transform import resize
 
 
-def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=4 ):
+def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=4, as_tensor=True ):
     """
     Finds contours in input image and returns the largest bounding box in the image.
 
@@ -51,7 +51,10 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
     ymin -= int( bbox_offset/2 )
     xmax += int( bbox_offset/2 )
     ymax += int( bbox_offset/2 )
-    return resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax )
+    if as_tensor:
+        return torch.tensor( resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax ) )
+    else:
+        return resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax )
     
 if __name__ == '__main__':
     with open("train_images.pkl", "rb") as handle:
