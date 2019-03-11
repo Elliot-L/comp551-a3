@@ -104,7 +104,7 @@ class Mnist_CNN(nn.Module):
         xb = F.relu(self.conv1(xb))
         xb = F.relu(self.conv2(xb))
         xb = F.relu(self.conv3(xb))
-        xb = F.avg_pool2d(xb, 6) # maxpool
+        xb = F.max_pool2d(xb, 6)
         return xb.view(-1, xb.size(1))
 
 class Basic_NeuralNet(nn.Module):
