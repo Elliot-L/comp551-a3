@@ -12,42 +12,6 @@ from torch.utils.data import DataLoader, TensorDataset
 # local files
 from data_loader import load_training_data, load_training_labels
 from some_model_classes import *
-from logger import Logger
-
-def shuffle_data_and_labels( data_tensor:torch.tensor, labels_tensor:torch.tensor, seed ):
-    """
-    Superseded by DataLoader's shuffle parameter.
-    Shuffles the input data and label tensors while maintaining their row-wise pair.
-
-    Arguments:
-
-        data_tensor, labels_tensors:    torch tensors of the data and corresponding labels, 
-                                        their first dimension must match.
-    
-        seed: int seed to provide to random.seed.
-
-    Returns:
-
-        training_data, training_labels: torch tensors which have been shuffled while maintaining
-                                        the association between the ith instance in data_tensor
-                                        and labels_tensor.
-    """
-    try:
-        assert data_tensor.shape[0] == labels_tensor.shape[0]
-    except AssertionError as err:
-        raise Exception( f"to shuffle the training-data and -labels tensors,\nthose two tensors need to have the first number of instance\n(first dimension): {data_tensor.shape[0]} != {labels_tensor.shape[0]}" ) from err
-
-    random.seed( seed )
-    instance_label_pairs = list( zip( data_tensor, labels_tensor ) )
-    # shuffles inplace, maintains features:label pairing 
-    random.shuffle( instance_label_pairs ) 
-    training_data_tup, training_labels_tup = zip( *instance_label_pairs )
-    
-    # restores tensors
-    training_data, training_labels = torch.stack( training_data_tup ), torch.stack( training_labels_tup )
-    del training_data_tup, training_labels_tup
-
-    return training_data, training_labels
 
 def accuracy( output_layer:torch.tensor, yb:torch.tensor ):
     ml_preds = torch.argmax( output_layer, dim=1 )
@@ -55,7 +19,6 @@ def accuracy( output_layer:torch.tensor, yb:torch.tensor ):
 
 def main( cli_args, device, logdir=os.path.join( os.getcwd(), 'logs' ), shuffle=True, verbose=True ):
 
-    logger = Logger( logdir )
     
     plt.ion()
     fig = plt.figure()
@@ -118,28 +81,7 @@ def main( cli_args, device, logdir=os.path.join( os.getcwd(), 'logs' ), shuffle=
             if batchidx % cli_args.log_interval == 0:
                 print( f"training epoch {epoch} / {cli_args.epochs}, batch #{batchidx} / {training_data.shape[0] // batch_size}\nLoss:\t{losses[-1]},\t\tAcc:\t{accuracies[-1]}\n" )
         
-                # ================================================================== #
-                #                        Tensorboard Logging                         #
-                # ================================================================== #
-
-                # 1. Log scalar values (scalar summary)
-                info = { 'loss': float( loss ), 'accuracy': float( acc ) }
-
-                for tag, value in info.items():
-                    logger.scalar_summary(tag, value, batchidx+1)
-
-                # 2. Log values and gradients of the parameters (histogram summary)
-                for tag, value in model.named_parameters():
-                    tag = tag.replace('.', '/')
-                    logger.histo_summary(tag, value.data.cpu().numpy(), batchidx+1)
-                    logger.histo_summary(tag+'/grad', value.grad.data.cpu().numpy(), batchidx+1)
-
-                # 3. Log training images (image summary)
-                info = { 'images': data_instance.view(-1, 64, 64)[:10].cpu().numpy() }
-
-                for tag, images in info.items():
-                    logger.image_summary(tag, images, batchidx+1)
-
+                
 if __name__ == '__main__':
     # Training settings; I kept mostly the same names as those
     # in mnist_example_cnn.py for ease of comparison, but added arguments
