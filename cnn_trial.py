@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 from torchvision import transforms
 from torch.utils.data import DataLoader, TensorDataset
-
+from tensorboardX import SummaryWriter
 # local files
 from data_loader import load_training_data, load_training_labels
 from some_model_classes import *
@@ -18,16 +18,10 @@ def accuracy( output_layer:torch.tensor, yb:torch.tensor ):
     return ( ml_preds == yb.long() ).float().mean()
 
 def main( cli_args, device, logdir=os.path.join( os.getcwd(), 'logs' ), shuffle=True, verbose=True ):
-
-    
-    plt.ion()
-    fig = plt.figure()
-    ax = fig.subplots( nrows=1, ncols=1 )
-    line1, = ax.plot( [0.0]*100, [0.0]*100, 'r-' )
      
     training_data = load_training_data( cli_args.training_dataset_path, as_tensor=True )    
     training_labels = load_training_labels( cli_args.training_labels_path, as_tensor=True )
-    tensor_dataset = TensorDataset( training_data, training_labels )
+    tensor_dataset = TensorDataset( training_data, training_labels.long() )
     
     batch_size = cli_args.batch_size
     if batch_size == 0:
@@ -45,14 +39,14 @@ def main( cli_args, device, logdir=os.path.join( os.getcwd(), 'logs' ), shuffle=
     model = Mnist_CNN( ).to( device )
     
     # parametize this
-    optimizer = optim.SGD( # Adam
+    optimizer = optim.Adam( # Adam
         model.parameters(), 
         lr=args.lr, 
-        momentum=args.momentum 
+        #momentum=args.momentum 
     )
 
     # parametize this
-    criterion = F.cross_entropy
+    criterion = nn.CrossEntropyLoss()
 
     if verbose:
         print( "model, optimizer, and criterion have been defined" )
@@ -65,22 +59,29 @@ def main( cli_args, device, logdir=os.path.join( os.getcwd(), 'logs' ), shuffle=
 
         model.train()
         for batchidx, ( data_instance, data_label ) in enumerate( tensor_dl ):
+
             # unsqueeze(0) adds a dimension in the leftmost position to deal with the Channels argument of the Conv2d layers
             unsqzd_di = data_instance.unsqueeze( 0 )
+            
+            # forward pass
             preds = model( unsqzd_di ) 
-            loss = criterion( preds, data_label.long() ) # the .long typecast is a bandaid fix, idfk wtf is happening 
+            
+            # compute loss and accuracy
+            loss = criterion( preds, data_label ) # the .long typecast is a bandaid fix, idfk wtf is happening 
             losses.append( loss )
 
-            acc = accuracy( preds, data_label )
-            accuracies.append( acc )
-            loss.backward()
+            # Compute accuracy
+            _, argmax = torch.max( preds, 1 )
+            accuracy = ( data_label == argmax.squeeze() ).float().mean()
+            accuracies.append( accuracy )
 
+            # reset gradients to zero, then do a backward prop and update the weights
+            optimizer.zero_grad() # zeros out any gradient buffers from previous iterations
+            loss.backward()
             optimizer.step()
-            optimizer.zero_grad() # should this be here, or indented -1?
 
             if batchidx % cli_args.log_interval == 0:
                 print( f"training epoch {epoch} / {cli_args.epochs}, batch #{batchidx} / {training_data.shape[0] // batch_size}\nLoss:\t{losses[-1]},\t\tAcc:\t{accuracies[-1]}\n" )
-        
                 
 if __name__ == '__main__':
     # Training settings; I kept mostly the same names as those
