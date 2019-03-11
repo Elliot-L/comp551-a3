@@ -98,7 +98,7 @@ class Mnist_CNN(nn.Module):
         self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1)
         self.conv2 = nn.Conv2d(16, 16, kernel_size=3, stride=2, padding=1)
         self.conv3 = nn.Conv2d(16, 10, kernel_size=3, stride=2, padding=1)
-
+        # add a Lin
     def forward(self, xb):
         xb = xb.view(-1, 1, 64, 64)
         xb = F.relu(self.conv1(xb))
