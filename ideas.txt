@@ -12,3 +12,7 @@ Meet on Friday
 -> brainstorming on transfer learning, MNIST, and ensemble methods
 -> Elliot: work on Inception
 -> Samy: work on YOLO
+
+-> add FC Linear layer at the end of FC CNN
+-> split train//val .9/.1
+-> make sure to use the same params as Elliot
