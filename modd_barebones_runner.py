@@ -34,7 +34,7 @@ tensor_dataset = TensorDataset( training_data, training_labels.long() )
 
 # Data loader
 data_loader = torch.utils.data.DataLoader(dataset=tensor_dataset, 
-                                          batch_size=100, 
+                                          batch_size=256, 
                                           shuffle=True)
 
 model = Mnist_CNN().to(device).double() # casting it to double because of some pytorch expected type peculiarities
@@ -43,11 +43,11 @@ logger = Logger('./logs')
 
 # Loss and optimizer
 criterion = nn.CrossEntropyLoss()  
-optimizer = torch.optim.Adam(model.parameters(), lr=0.00001)  
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)  
 
 data_iter = iter(data_loader)
 iter_per_epoch = len(data_loader)
-total_step = 5000
+total_step = 500000
 
 # Start training
 for step in range(total_step):
