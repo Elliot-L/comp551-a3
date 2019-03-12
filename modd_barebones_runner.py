@@ -123,7 +123,8 @@ if __name__ == '__main__':
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=10, metavar='N',
                         help='how many batches to wait before logging training status')
-    
+    parser.add_argument('--MNIST-sanity-check', type=bool, default=False,
+                        help="Whether to run the model on PyTorch's MNIST dataset first")
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     args = parser.parse_args()
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     
     # Dataset loading
     print( "\n>>> Loading datasets\n" )
-    training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False ) 
+    training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False, extract_bbox=True, verbose=True ) 
     cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
     training_data = torch.stack( cleaned_images )
     training_labels = load_training_labels( 'train_labels.csv', as_tensor=True )
@@ -143,7 +144,7 @@ if __name__ == '__main__':
 
     # Creating train/validation datasets
     print( "\n>>> Splitting datasets\n" )
-    dataset_size = len( training_data )
+    dataset_size = len( tensor_dataset )
     indices = list( range( dataset_size ) )
     validation_split = 0.2 # could be parameterized
     split = int( np.floor( validation_split * dataset_size ) )
