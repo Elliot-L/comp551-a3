@@ -137,7 +137,7 @@ class Tut_TwoLayerNet(torch.nn.Module):
             - H : size of the first hidden layer
             - D_out : size of the output/ second layer
         """
-        super(TwoLayerNet, self).__init__() # intialize recursively 
+        super(Tut_TwoLayerNet, self).__init__() # intialize recursively 
         self.linear1 = torch.nn.Linear(D_in, H) # create a linear layer 
         self.linear2 = torch.nn.Linear(H, D_out) 
 
@@ -151,3 +151,21 @@ class Tut_TwoLayerNet(torch.nn.Module):
         h_relu = self.linear1(x)
         y_pred = self.linear2(h_relu)
         return y_pred
+
+class Other_MNIST_CNN(nn.Module):
+    def __init__(self):
+        super(Other_MNIST_CNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(16, 64, kernel_size=3, stride=2, padding=1) # 12800
+        self.fc1 = nn.Linear(1024, 500)
+        self.fc2 = nn.Linear(500, 10)
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x)) # [64, 1, 64, 64] -> [64, 16, 32, 32]
+        x = F.max_pool2d(x, 2, 2) # [64, 16, 32, 32] -> [64, 16, 16, 16]
+        x = F.relu(self.conv2(x)) # [64, 16, 16, 16] -> [64, 64, 8, 8]
+        x = F.max_pool2d(x, 2, 2) # [64, 64, 8, 8] -> [64, 64, 4, 4]
+        x = x.view(64, 1024) # [64, 64, 4, 4] -> [64, 1024]
+        x = F.relu(self.fc1(x)) # [64, 1024] -> [64, 500]
+        x = self.fc2(x) # [64, 500] -> [64, 10]
+        return F.log_softmax(x, dim=1)
