@@ -8,7 +8,7 @@ from skimage.util import invert
 from skimage.transform import resize
 
 
-def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=4, as_tensor=True ):
+def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=2, as_tensor=True ):
     """
     Finds contours in input image and returns the largest bounding box in the image.
 
