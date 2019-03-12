@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import argparse, os, torch
 
-
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
@@ -90,6 +89,7 @@ def main():
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     args = parser.parse_args()
+    
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
     torch.manual_seed(args.seed)
