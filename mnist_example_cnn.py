@@ -4,11 +4,17 @@ from __future__ import print_function
 
 import argparse, os, torch
 
+
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
 
+from torchvision import datasets, transforms
+from torch.utils.data.sampler import SubsetRandomSampler
+from tensorboardX import SummaryWriter
+
+from logger import Logger
 
 class Net(nn.Module):
     def __init__(self):
@@ -28,7 +34,7 @@ class Net(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
     
-def train(args, model, device, train_loader, optimizer, epoch):
+def train(args, model, device, train_loader, optimizer, epoch, train_fraction):
     model.train()
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
@@ -39,8 +45,8 @@ def train(args, model, device, train_loader, optimizer, epoch):
         optimizer.step()
         if batch_idx % args.log_interval == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader), loss.item()))
+                epoch, batch_idx * len(data), train_fraction*len(train_loader.dataset),
+                100. * batch_idx * len(data) / ( train_fraction * len(train_loader.dataset) ), loss.item()))
 
 def test(args, model, device, test_loader):
     model.eval()
@@ -54,11 +60,12 @@ def test(args, model, device, test_loader):
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
 
-    test_loss /= len(test_loader.dataset)
-
+    test_loss /= ( test_loader.batch_size * len(test_loader) )
+    accuracy = 100. * correct / ( test_loader.batch_size * len(test_loader) )
     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+        test_loss, correct, test_loader.batch_size * len(test_loader),
+        #100. * correct / len(test_loader.dataset)))
+        accuracy))
 
 def main():
     # Training settings
@@ -90,27 +97,60 @@ def main():
     device = torch.device("cuda" if use_cuda else "cpu")
 
     kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(os.path.join( '..', 'data' ), train=True, download=True,
+
+    dataset = datasets.MNIST(os.path.join( '..', 'data' ), train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-        batch_size=args.batch_size, shuffle=True, **kwargs)
+                       ]))
+
+    dataset_size = len( dataset )
+    indices = list( range( dataset_size ) )
+    validation_split = 0.1
+    split = int( np.floor( validation_split * dataset_size ) )
+    
+    np.random.seed( args.seed )
+    np.random.shuffle( indices )
+    train_indices, val_indices = indices[split:], indices[:split]
+
+    # Creating PT data samplers and loaders:
+    train_sampler = SubsetRandomSampler( train_indices )
+    valid_sampler = SubsetRandomSampler( val_indices )
+
+    train_loader = torch.utils.data.DataLoader(
+        dataset, 
+        batch_size=args.batch_size, 
+        sampler=train_sampler
+        # shuffle=True # already shuffled
+    )
+    validation_loader = torch.utils.data.DataLoader(
+        dataset, 
+        batch_size=args.batch_size,
+        sampler=valid_sampler,
+        # shuffle=True # already shuffled
+    )
+
+    '''   
+    # original stuff, had this for train_loader as well
     test_loader = torch.utils.data.DataLoader(
         datasets.MNIST(os.path.join( '..', 'data' ), train=False, transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=args.test_batch_size, shuffle=True, **kwargs)
+    '''
+    
+    print( f"train_loader has a size of {len(train_loader)}\n" )
+    print( f"validation_loader has a size of {len(validation_loader)}\n" )
 
+    logger = Logger('./logs')
 
     model = Net().to(device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
     for epoch in range(1, args.epochs + 1):
-        train(args, model, device, train_loader, optimizer, epoch)
-        test(args, model, device, test_loader)
+        train(args, model, device, train_loader, optimizer, epoch, train_fraction=( 1-validation_split ) )
+        test(args, model, device, validation_loader) # was test_loader
 
     if (args.save_model):
         torch.save(model.state_dict(),"mnist_cnn.pt")
