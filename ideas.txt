@@ -1,5 +1,5 @@
 Main Idea: use transfer learning
--> use a baseline CNN?
+-> use a baseline CNN?; done
 -> use a baseline CNN architecture for Inception, YOLO, MobileNet, googLeNet w/o transfer learning
 
 Stretch Idea: use feature-extraction vectors from CNNs as input to some other models
@@ -13,6 +13,8 @@ Meet on Friday
 -> Elliot: work on Inception
 -> Samy: work on YOLO
 
--> add FC Linear layer at the end of FC CNN
--> split train//val .9/.1
+-> add FC Linear layer at the end of FC CNN; done
+-> split train//val .9/.1; done, but with parameters
 -> make sure to use the same params as Elliot
+
+-> add external info by fetching other mnist datasets?
