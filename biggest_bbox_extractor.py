@@ -4,7 +4,7 @@ import numpy as np
 
 from operator import itemgetter
 from skimage.measure import find_contours
-from skimage.util import invert
+# from skimage.util import invert
 from skimage.transform import resize
 
 
@@ -51,7 +51,16 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
     ymin -= int( bbox_offset/2 )
     xmax += int( bbox_offset/2 )
     ymax += int( bbox_offset/2 )
-    return resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax )
+
+    xmin = max(0, xmin)
+    ymin = max(0, ymin)
+    xmax = min(output_dim, xmax)
+    ymax = min(output_dim, ymax)
+
+    try:
+        return resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax )
+    except:
+        print('mistake')
     
 if __name__ == '__main__':
     with open("train_images.pkl", "rb") as handle:
