@@ -14,6 +14,6 @@ image_array = pickle.load(pickle_in)
 os.makedirs(DATA_FOLDER, exist_ok=True)
 
 for i in trange(len(image_array)):
-    print('image')
-    image = preprocess_image(image_array[i])
-    image_name =
+    image = preprocess_image(image_array[i], zero_padding=True, bbox_size=64)
+    image_name = 'image_' + str(i) + '.png'
+    scipy.misc.toimage(image, cmin=0, cmax=255).save(os.path.join(DATA_FOLDER, image_name))
