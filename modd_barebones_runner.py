@@ -377,8 +377,8 @@ if __name__ == '__main__':
             validate(args, model, loss_fn, device, validation_loader, epoch, logger, args.validation_split_fraction )
     
     if (args.save_model):
-        torch.save(model.state_dict(),"mnist_cnn.pt")
-        with open( os.path.join( os.getcwd(), 'pickled-params', datetime.now().strftime( '%Y-%m-%d_%H-%M' ), '.pickle' ), 'w' ) as params_file:
+        torch.save(model.state_dict(), os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_model.savefile' ) )
+        with open( os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_params.savefile' ), 'w' ) as params_file:
             params_file.write( args.__repr__() )
             params_file.write( '\n' )
             params_file.write( optimizer.__repr__() )
@@ -386,3 +386,4 @@ if __name__ == '__main__':
             params_file.write( loss_fn.__repr__() )
 
     print( f"\nThe log file was saved in {logpath.__str__()}\n")
+    print( f"\nThe model and parameter save files were saved in { os.path.join( os.getcwd(), 'pickled-params' ) }\n" )
