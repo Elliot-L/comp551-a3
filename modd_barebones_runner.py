@@ -233,7 +233,7 @@ if __name__ == '__main__':
                         help='how many batches to wait before logging training status')
     parser.add_argument('--MNIST-sanity-check', type=bool, default=False,
                         help="Whether to run the model on PyTorch's MNIST dataset first")
-    parser.add_argument('--save-model', action='store_true', default=False,
+    parser.add_argument('--save-model', action='store_true', default=True,
                         help='For Saving the current Model')
     parser.add_argument('--verbose', type=bool, default=True,
                         help='boolean indicator of verbosity')
