@@ -333,8 +333,8 @@ if __name__ == '__main__':
 
         del training_labels # for the sake of memory management
         del validating_labels # for the sake of memory management
-        print( ">>> The label distribution in the training dataset:\n{}\n".format( '\n'.join( [ (k,v).__str__() for k,v in training_labels_counter.items() ] ) ) )
-        print( ">>> The label distribution in the validating dataset:\n{}\n".format( '\n'.join( [ (k,v).__str__() for k,v in validating_labels_counter.items() ] ) ) )
+        print( ">>> The label distribution in the training dataset:\n{}\n".format( '\n'.join( [ ( k,v ).__str__() for k,v in training_labels_counter.items() ] ) ) )
+        print( ">>> The label distribution in the validating dataset:\n{}\n".format( '\n'.join( [ ( k,v ).__str__() for k,v in validating_labels_counter.items() ] ) ) )
 
     try:
         assert ( len( train_loader.dataset ) * ( 1.0 - args.validation_split_fraction )  ) % train_loader.batch_size == 0
@@ -380,5 +380,9 @@ if __name__ == '__main__':
         torch.save(model.state_dict(),"mnist_cnn.pt")
         with open( os.path.join( os.getcwd(), 'pickled-params', datetime.now().strftime( '%Y-%m-%d_%H-%M' ) ), 'w' ) as params_file:
             params_file.write( args.__repr__() )
+            params_file.write( '\n' )
+            params_file.write( optimizer.__repr__() )
+            params_file.write( '\n' )
+            params_file.write( loss_fn.__repr__() )
 
     print( f"\nThe log file was saved in {logpath.__str__()}\n")
