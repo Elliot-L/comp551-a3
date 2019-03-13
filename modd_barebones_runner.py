@@ -363,8 +363,7 @@ if __name__ == '__main__':
         model = Other_MNIST_SANITY_CHECK_CNN().to( device ) # _not_ casting it to double because of some pytorch expected type peculiarities
 
     # Loss and optimizer
-    criterion = nn.CrossEntropyLoss()  
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)  
+    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr )  
     loss_fn = nn.CrossEntropyLoss() 
 
     print( "\n>>> Starting training\n" )
