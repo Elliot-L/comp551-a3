@@ -378,7 +378,7 @@ if __name__ == '__main__':
     
     if (args.save_model):
         torch.save(model.state_dict(),"mnist_cnn.pt")
-        with open( os.path.join( os.getcwd(), 'pickled-params', datetime.now().strftime( '%Y-%m-%d_%H-%M' ) ), 'w' ) as params_file:
+        with open( os.path.join( os.getcwd(), 'pickled-params', datetime.now().strftime( '%Y-%m-%d_%H-%M' ), '.pickle' ), 'w' ) as params_file:
             params_file.write( args.__repr__() )
             params_file.write( '\n' )
             params_file.write( optimizer.__repr__() )
