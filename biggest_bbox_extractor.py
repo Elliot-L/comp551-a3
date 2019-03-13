@@ -1,4 +1,4 @@
-import pickle 
+import pickle, torch
 import matplotlib.pyplot as plt
 import numpy as np 
 
@@ -8,7 +8,7 @@ from skimage.measure import find_contours
 from skimage.transform import resize
 
 
-def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=4 ):
+def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=2, as_tensor=True ):
     """
     Finds contours in input image and returns the largest bounding box in the image.
 
@@ -39,6 +39,8 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
     bboxes = []
     for sil_i, silhouette in enumerate( contour_vertices ):
         bbox_xmax, bbox_ymax = np.rint( np.amax( silhouette, axis=0 ) )
+        bbox_xmax += 1 # for inclusion of the max x-value
+        bbox_ymax += 1 # for inclusion of the max y-value
         bbox_xmin, bbox_ymin = np.rint( np.amin( silhouette, axis=0  ) )
 
         bbox_dim = max( ( bbox_xmax - bbox_xmin ), ( bbox_ymax - bbox_ymin ) ) 
@@ -49,19 +51,16 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
     ( xmin, xmax ), ( ymin, ymax ) = bboxes[0][1], bboxes[0][2]
     xmin -= int( bbox_offset/2 )
     ymin -= int( bbox_offset/2 )
+    xmin, ymin = max( 0, xmin ), max( 0, ymin )
     xmax += int( bbox_offset/2 )
     ymax += int( bbox_offset/2 )
 
-    xmin = max(0, xmin)
-    ymin = max(0, ymin)
-    xmax = min(output_dim, xmax)
-    ymax = min(output_dim, ymax)
-
-    try:
+    xmax, ymax = min( output_dim, xmax ), min( output_dim, ymax )
+    if as_tensor:
+        return torch.tensor( resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ) ), ( xmin, xmax ), ( ymin, ymax ) 
+    else:
         return resize( img_arr[ xmin:xmax, ymin:ymax ], ( output_dim, output_dim ) ), ( xmin, xmax ), ( ymin, ymax )
-    except:
-        print('mistake')
-    
+
 if __name__ == '__main__':
     with open("train_images.pkl", "rb") as handle:
         data = pickle.load( handle )

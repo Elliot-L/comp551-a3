@@ -1,5 +1,4 @@
 # Code referenced from https://gist.github.com/gyglim/1f8dfb1b5c82627ae3efcfbbadb9f514
-import os
 import tensorflow as tf
 import numpy as np
 import scipy.misc 
@@ -13,9 +12,6 @@ class Logger(object):
     
     def __init__(self, log_dir):
         """Create a summary writer logging to log_dir."""
-        if not os.path.isdir( log_dir ):
-            print( f"created logging directory in {log_dir}" )
-            os.mkdir( log_dir )
         self.writer = tf.summary.FileWriter(log_dir)
 
     def scalar_summary(self, tag, value, step):
