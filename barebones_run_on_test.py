@@ -50,12 +50,12 @@ def run_on_test( model, device, test_loader, output_file_path, number_of_padding
 
 
 if __name__ == '__main__':
-    '''parser = argparse.ArgumentParser(description='Runs a PyTorch model on the test Modified MNIST dataset')
+    parser = argparse.ArgumentParser(description='Runs a PyTorch model on the test Modified MNIST dataset')
     parser.add_argument('--path-to-model-savefile', type=str, required=True,
                         help="path to the model save file, should be in /pickled-params/<something>/<timestamp>_model.savefile")
     parser.add_argument('--model-batch-size', type=int, default=64,
                         help='batch size for model (default: 64)')
-    args = parser.parse_args()'''
+    args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -63,14 +63,14 @@ if __name__ == '__main__':
     model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
     
     # useful reference for debugging
-    batch_size = 64
-    path_to_mode_savefile = os.path.abspath( r"C:\Users\Samy\Dropbox\Samy_Dropbox\MSc\winter-2019-courses\COMP-551\mini-project-3\comp551-a3\pickled-params\2019-03-13_22-33_model.savefile" )
+    # batch_size = 64
+    # path_to_mode_savefile = os.path.abspath( r"C:\Users\Samy\Dropbox\Samy_Dropbox\MSc\winter-2019-courses\COMP-551\mini-project-3\comp551-a3\pickled-params\2019-03-13_22-33_model.savefile" )
     # hard-coded parameters end here
         
     # load learned parameters
     
-    #model.load_state_dict( torch.load( args.path_to_model_savefile ) )
-    model.load_state_dict( torch.load( path_to_mode_savefile ) )
+    model.load_state_dict( torch.load( args.path_to_model_savefile ) )
+    #model.load_state_dict( torch.load( path_to_mode_savefile ) )
     print( ">>> Loaded model\n\n" )
 
     test_dataset, number_of_padding_arrays = load_testing_data( as_tensor=True )
@@ -84,8 +84,8 @@ if __name__ == '__main__':
 
     test_loader = torch.utils.data.DataLoader( 
         test_dataset,
-        #batch_size=args.model_batch_size,
-        batch_size=batch_size,
+        batch_size=args.model_batch_size,
+        #batch_size=batch_size,
         shuffle=False
     )
     
