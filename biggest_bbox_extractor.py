@@ -31,6 +31,13 @@ def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, 
 
     # rescales image from [ 0, 255 ] -> [ 0.0, 1.0 ]
     img_arr = np.copy( arr ) / 255
+
+    if np.sum( img_arr ) == 0 :
+        if as_tensor:
+            return torch.tensor( img_arr ), None, None
+        else:
+            return img_arr, None, None
+    
     
     # contour_vertices is a list of [ y, x ] arrays, where y and x are floats
     contour_vertices = find_contours( img_arr, digit_color_threshold )
