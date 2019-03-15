@@ -1,19 +1,21 @@
 import numpy as np
 from biggest_bbox_extractor import cut_out_dom_bbox
 
-def preprocess_image(sample, zero_padding=True, bbox_size=64):
+
+def preprocess_image(sample, zero_padding=True, bbox_size=64, change_range=False):
     # trying the resized bounding box of the dominant number
     image = cut_out_dom_bbox(sample, output_dim=bbox_size)[0]  # scales image between 0 and 1
 
     # change range back to (0, 255)
-    NewMin = 0
-    NewMax = 255
-    OldMin = 0.0
-    OldMax = 1.0
-    OldRange = (OldMax - OldMin)
-    NewRange = (NewMax - NewMin)
-    image = np.array((((image - OldMin) * NewRange) / OldRange) + NewMin,
-                     dtype=np.float32)  # scale image to between 0 and 255
+    if change_range:
+        NewMin = 0
+        NewMax = 255
+        OldMin = 0.0
+        OldMax = 1.0
+        OldRange = (OldMax - OldMin)
+        NewRange = (NewMax - NewMin)
+        image = np.array((((image - OldMin) * NewRange) / OldRange) + NewMin,
+                         dtype=np.float32)  # scale image to between 0 and 255
 
     inception_dimension = 299  # magic number, inception takes (299, 299) dim input tensors
     # going to experiment with zero padding images to the full resolution so that the digit doesn't get further upscaled

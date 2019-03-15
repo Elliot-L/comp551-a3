@@ -7,7 +7,7 @@ from sklearn.preprocessing import MinMaxScaler
 from skimage.transform import resize
 from tqdm import trange
 from preprocess_utils import preprocess_image
-DATA_FOLDER = 'mnist_photos_padded'
+DATA_FOLDER = 'mnist_photos'
 
 def main():
     pickle_in = open("train_images.pkl","rb")
@@ -40,7 +40,8 @@ def main():
         if label_counts[int(lb[1])] < max_samples:
             label_counts[int(lb[1])] += 1
             image = image_array[lb[0]]
-            image = preprocess_image(image, zero_padding=True, bbox_size=128)
+            image = preprocess_image(image, zero_padding=False, bbox_size=64, change_range=False)
+
             # # trying the resized bounding box of the dominant number
             # image = cut_out_dom_bbox(image, output_dim=128)[0]  # scales image between 0 and 1
             #
@@ -63,10 +64,10 @@ def main():
             #     image = np.pad(image, [(top_pad, bottom_pad), (left_pad, right_pad)], mode='constant')
             #
             # # triplicate image to 3 channels
-            # image = np.dstack((image, image, image))
+            image = np.dstack((image, image, image))
             image_name = 'image_' + str(lb[0]) + '.png'
             image_dir = os.path.join(DATA_FOLDER, lb[1])
-            scipy.misc.toimage(image, cmin=0, cmax=255).save(os.path.join(image_dir, image_name))
+            scipy.misc.toimage(image, cmin=0, cmax=1).save(os.path.join(image_dir, image_name))
             # np.array(Image.open('mnist/9/image_0.jpg'))  # test that all values are the same
 
 # run the preprocessor

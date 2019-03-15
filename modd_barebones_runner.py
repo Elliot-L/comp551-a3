@@ -20,7 +20,7 @@ from logger import Logger
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 # local files
 from data_loader import load_training_data, load_training_labels
@@ -215,19 +215,21 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
+    parser.add_argument('--l2', type=float, default=0.0001, metavar='N',
+                        help='weight_decay parameter sent to optimizer (default: 0.0001)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
     parser.add_argument('--validation-split-fraction', type=float, default=0.2, metavar='V',
                         help='the fraction (0.#) of the training dataset to set aside for validation')
-    parser.add_argument('--epochs', type=int, default=10, metavar='N',
+    parser.add_argument('--epochs', type=int, default=15, metavar='N',
                         help='number of epochs to train (default: 10)')
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',
-                        help='learning rate (default: 0.01)')
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
+                        help='learning rate (default: 0.001)')
     parser.add_argument('--momentum', type=float, default=0.5, metavar='M',
                         help='SGD momentum (default: 0.5)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--seed', type=int, default=1, metavar='S',
+    parser.add_argument('--seed', type=int, default=4, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
@@ -357,13 +359,15 @@ if __name__ == '__main__':
         print( f"\nThe log file will be saved in {logpath.__str__()}\n")
 
     # Model definition
-    model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
+    model = Elliot_Model().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
 
     if args.MNIST_sanity_check == True:
         model = Other_MNIST_SANITY_CHECK_CNN().to( device ) # _not_ casting it to double because of some pytorch expected type peculiarities
 
     # Loss and optimizer
-    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr )  
+    # optimizer = torch.optim.Adam( model.parameters(), lr=args.lr )
+    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr, weight_decay=args.l2 )  # adding l2 loss
+
     loss_fn = nn.CrossEntropyLoss() 
 
     print( "\n>>> Starting training\n" )
