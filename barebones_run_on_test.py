@@ -20,7 +20,7 @@ from logger import Logger
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 
 # local files
 from data_loader import load_training_data, load_training_labels, load_testing_data
@@ -89,7 +89,7 @@ if __name__ == '__main__':
         shuffle=False
     )
     
-    output_file_path = os.path.join( os.path.dirname( path_to_mode_savefile ), 'test_set_predictions.csv' ) 
+    output_file_path = os.path.join( os.path.dirname( args.path_to_mode_savefile ), 'test_set_predictions.csv' ) 
 
     print( ">>> Evaluating on test dataset" )
     run_on_test( model, device, test_loader, output_file_path, number_of_padding_arrays )
