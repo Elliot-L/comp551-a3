@@ -169,6 +169,7 @@ class Other_MNIST_CNN(nn.Module):
         x = x.view(64, 1024) # [64, 64, 4, 4] -> [64, 1024]
         x = F.relu(self.fc1(x)) # [64, 1024] -> [64, 500]
         x = self.fc2(x) # [64, 500] -> [64, 10]
+        # check me out!!!
         return F.log_softmax(x, dim=1)
 
 class Other_MNIST_SANITY_CHECK_CNN(nn.Module):
@@ -189,6 +190,7 @@ class Other_MNIST_SANITY_CHECK_CNN(nn.Module):
         x = x.view(-1, 4*4*50)
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
+        # check me out!!!
         return F.log_softmax(x, dim=1)
     
 class deeper_MNIST_CNN(nn.Module):
@@ -216,5 +218,6 @@ class deeper_MNIST_CNN(nn.Module):
         x = F.relu( self.fc1( x ) ) # [64, 4096] -> [64, 2048]
         x = F.relu( self.fc2( x ) ) # [64, 2048] -> [64, 512]
         x = F.relu( self.fc3( x ) ) # [64, 512] -> [64,10]
+        # check me out!!!
         return F.log_softmax(x, dim=1)
         
