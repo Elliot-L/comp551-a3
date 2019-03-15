@@ -21,7 +21,7 @@ from logger import Logger
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.sampler import SubsetRandomSampler
 
-from tensorboardX import SummaryWriter
+# from tensorboardX import SummaryWriter
 from sklearn.linear_model import LogisticRegression
 
 # local files
