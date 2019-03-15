@@ -236,3 +236,30 @@ class Other_MNIST_SANITY_CHECK_CNN(nn.Module):
         x = self.fc2(x)
         return F.log_softmax(x, dim=1)
     
+class deeper_MNIST_CNN(nn.Module):
+    # deeper and bigger version of Other_MNIST_CNN
+    def __init__( self ):
+        super( deeper_MNIST_CNN, self ).__init__()
+        self.conv1 = nn.Conv2d( 1, 32, kernel_size=3, stride=2, padding=1 )
+        self.conv1_bn = nn.BatchNorm2d( 32 )
+        self.conv2 = nn.Conv2d( 32, 64, kernel_size=3, stride=2, padding=1 ) 
+        self.conv2_bn = nn.BatchNorm2d( 64 )
+        self.conv3 = nn.Conv2d( 64, 256, kernel_size=3, stride=2, padding=1 )
+        self.conv3_bn = nn.BatchNorm2d( 256 )
+        self.fc1 = nn.Linear( 4096, 2048 )
+        self.fc2 = nn.Linear( 2048, 512 )
+        self.fc3 = nn.Linear( 512, 10 )
+
+    def forward( self, x ):
+        # warning: dimensions in comments are off
+        x = F.relu( self.conv1_bn( self.conv1( x ) ) ) # [64, 1, 64, 64] -> [64, 32, 32, 32]
+        x = F.relu( self.conv2_bn( self.conv2( x ) ) ) # [64, 32, 32, 32] -> [64, 64, 16,16]
+        x = F.relu( self.conv3_bn( self.conv3 ( x ) ) ) # [64, 64, 16,16] -> [64, 256, 8, 8 ]
+        x = F.max_pool2d( x, 2, 2 ) # [64, 256, 2, 2] -> [64, 256, 1, 1]
+        # should we use batchnorm layers for the lin layers?
+        x = x.view( 64, 4096 )
+        x = F.relu( self.fc1( x ) ) # [64, 4096] -> [64, 2048]
+        x = F.relu( self.fc2( x ) ) # [64, 2048] -> [64, 512]
+        x = F.relu( self.fc3( x ) ) # [64, 512] -> [64,10]
+        return F.log_softmax(x, dim=1)
+        

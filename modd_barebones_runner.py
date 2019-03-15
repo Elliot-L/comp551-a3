@@ -8,6 +8,7 @@ import os, argparse
 from tqdm import tqdm
 from datetime import datetime
 from collections import Counter
+from copy import deepcopy
 
 import numpy as np
 
@@ -20,7 +21,9 @@ from logger import Logger
 from torch.utils.data import DataLoader, TensorDataset
 from torch.utils.data.sampler import SubsetRandomSampler
 
+
 # from tensorboardX import SummaryWriter
+from sklearn.linear_model import LogisticRegression
 
 # local files
 from data_loader import load_training_data, load_training_labels
@@ -84,6 +87,8 @@ def validate(args, model, loss_fn, device, validation_loader, epoch, logger, val
     model.eval()
     validation_loss = 0
     correct = 0
+    outputs = []
+    targets = []
     with torch.no_grad():
         for data, target in validation_loader:
             data = data.unsqueeze( 1 )
@@ -92,6 +97,8 @@ def validate(args, model, loss_fn, device, validation_loader, epoch, logger, val
             validation_loss += loss_fn(output, target).item() # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
+            outputs.append( output )
+            targets.append( target )
 
     validation_loss /= ( validation_loader.batch_size * len( validation_loader ) )
     accuracy = 100. * correct / ( validation_loader.batch_size * len( validation_loader ) )
@@ -121,6 +128,8 @@ def validate(args, model, loss_fn, device, validation_loader, epoch, logger, val
 
     for tag, images in info.items():
         logger.image_summary(tag, images, step)'''
+
+    return outputs, targets
 
 def sanity_check_train(args, model, device, train_loader, optimizer, epoch, train_fraction, logger):
     model.train()
@@ -215,7 +224,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--l2', type=float, default=0.0001, metavar='N',
+    parser.add_argument('--l2', type=float, default=0, metavar='N',
                         help='weight_decay parameter sent to optimizer (default: 0.0001)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
@@ -239,6 +248,8 @@ if __name__ == '__main__':
                         help='For Saving the current Model')
     parser.add_argument('--verbose', type=bool, default=True,
                         help='boolean indicator of verbosity')
+    parser.add_argument('--n-models', type=int, default=1,
+                        help='number of models to train.')
     args = parser.parse_args()
         
     # Device configuration
@@ -263,13 +274,17 @@ if __name__ == '__main__':
             print( f">>> MNIST dataset shape = {tensor_dataset.data.shape}" )
 
     else:
-        training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False ) 
-        cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
-        training_data = torch.stack( cleaned_images )
+        # training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False ) 
+        # for debugging 
+        training_data_raw = load_training_data( 'train_images.pkl', as_tensor=True ).double() 
+        #cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
+        #training_data = torch.stack( cleaned_images )
+        # for debugging 
+        training_data = training_data_raw
         if args.verbose:
             print( ">>> Loaded and cleaned (extracted) training data" )
-        training_labels = load_training_labels( 'train_labels.csv', as_tensor=True )
-        tensor_dataset = TensorDataset( training_data, training_labels.long() )
+        training_labels = load_training_labels( 'train_labels.csv', as_tensor=True ).long()
+        tensor_dataset = TensorDataset( training_data, training_labels )
         assert len( training_labels ) == len( training_data )
         if args.verbose:
             print( ">>> Compiled tensor dataset" )
@@ -355,15 +370,27 @@ if __name__ == '__main__':
         os.mkdir( logpath )
     
     logger = Logger( logpath )
+    if args.n_models > 1:
+        loggers = [ Logger( os.path.join( os.getcwd(), 'logs', 'MNIST-Sanity-Check'+start_timestamp+f'{i}_of_{args.n_models}' ) ) for i in range( args.n_models ) ]
+
     if args.verbose:
         print( f"\nThe log file will be saved in {logpath.__str__()}\n")
 
     # Model definition
     model = Elliot_Model().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
 
+    # model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
+    
     if args.MNIST_sanity_check == True:
         model = Other_MNIST_SANITY_CHECK_CNN().to( device ) # _not_ casting it to double because of some pytorch expected type peculiarities
 
+    meta_log_reg_clf = None
+    if args.n_models > 1:
+        models = [ deepcopy( model ) for _ in range( args.n_models ) ]
+        meta_log_reg_clf = LogisticRegression(
+            random_state=args.seed, 
+            solver='lbfgs'
+        )
     # Loss and optimizer
     # optimizer = torch.optim.Adam( model.parameters(), lr=args.lr )
     optimizer = torch.optim.Adam( model.parameters(), lr=args.lr, weight_decay=args.l2 )  # adding l2 loss
@@ -377,11 +404,31 @@ if __name__ == '__main__':
             sanity_check_train( args, model, device, train_loader, optimizer, epoch, ( 1.0 - args.validation_split_fraction ), logger )
             sanity_check_validate( args, model, device, validation_loader, epoch, logger, args.validation_split_fraction )
         else:
-            train(args, model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, args.batch_size, logger)
-            validate(args, model, loss_fn, device, validation_loader, epoch, logger, args.validation_split_fraction )
-    
+            if args.n_models > 1:
+                all_models_outputs = [ [ ] for _ in range( args.n_models ) ]
+                all_corresponding_targets = [ ] # needed because the input is shuffled
+                for e, this_model in enumerate( models ):
+                    print( f">>> training model {e+1} of {args.n_models}" )
+                    train(args, this_model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, args.batch_size, loggers[e] )
+
+                    # this_models_outputs is a list of tensors of size args.batch_size x # classes
+                    # corresponding_targets is a list of tensors of size args.batch_size
+                    this_model_outputs, corresponding_targets = validate(args, this_model, loss_fn, device, validation_loader, epoch, loggers[e], args.validation_split_fraction )
+                    all_models_outputs[ e ].extend( this_model_outputs.numpy() )
+                    
+                    if e == 0: # avoid duplicating targets
+                        all_corresponding_targets.extend( corresponding_targets.numpy().tolist() )
+
+            else:
+                train(args, model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, args.batch_size, logger)
+                _ = validate(args, model, loss_fn, device, validation_loader, epoch, logger, args.validation_split_fraction )
+
     if (args.save_model):
-        torch.save(model.state_dict(), os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_model.savefile' ) )
+        if args.n_models > 1:
+            for e, this_model in enumerate( models ):
+                torch.save( model.state_dict(), os.path.join( os.getcwd(), 'pickled-params', start_timestamp+f"_model_{e+1}_of_{args.n_models}.savefile" ) )
+        else:
+            torch.save( model.state_dict(), os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_model.savefile' ) )
         with open( os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_params.savefile' ), 'w' ) as params_file:
             params_file.write( args.__repr__() )
             params_file.write( '\n' )

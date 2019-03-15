@@ -17,4 +17,8 @@ Meet on Friday
 -> split train//val .9/.1; done, but with parameters
 -> make sure to use the same params as Elliot
 
+-> make a deeper CNN to run on AWS
+-> figure out how to ssh/sftp/run stuff onto AWS
+-> ensemble stuff
+-> use batch norm for quick perf boost
 -> add external info by fetching other mnist datasets?
