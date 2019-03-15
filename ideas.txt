@@ -19,6 +19,6 @@ Meet on Friday
 
 -> make a deeper CNN to run on AWS
 -> figure out how to ssh/sftp/run stuff onto AWS
--> ensemble stuff
+-> ensemble stuff; use KNN but use the output of last layer -- Elliot knows
 -> use batch norm for quick perf boost
 -> add external info by fetching other mnist datasets?
