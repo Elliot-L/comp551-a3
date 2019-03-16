@@ -274,13 +274,13 @@ if __name__ == '__main__':
             print( f">>> MNIST dataset shape = {tensor_dataset.data.shape}" )
 
     else:
-        # training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False ) 
+        training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False )
         # for debugging 
-        training_data_raw = load_training_data( 'train_images.pkl', as_tensor=True ).double() 
-        #cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
-        #training_data = torch.stack( cleaned_images )
+        training_data_raw = load_training_data( 'train_images.pkl', as_tensor=True ).double()
+        cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
+        training_data = torch.stack( cleaned_images )
         # for debugging 
-        training_data = training_data_raw
+        # training_data = training_data_raw
         if args.verbose:
             print( ">>> Loaded and cleaned (extracted) training data" )
         training_labels = load_training_labels( 'train_labels.csv', as_tensor=True ).long()
@@ -393,7 +393,7 @@ if __name__ == '__main__':
         )
     # Loss and optimizer
     # optimizer = torch.optim.Adam( model.parameters(), lr=args.lr )
-    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr, weight_decay=args.l2 )  # adding l2 loss
+    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr)  # adding l2 loss
 
     loss_fn = nn.CrossEntropyLoss() 
 
