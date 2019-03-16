@@ -47,11 +47,14 @@ def load_training_data(filepath=os.path.join(os.getcwd(), 'train_images.pkl'), a
         images = list()
         for arr in data:
             new_image = arr.copy()
-            rot90 = np.rot90(new_image, 1)
-            rot180 = np.rot90(new_image, 2)
-            rot270 = np.rot90(new_image, 3)
-            stacked = np.dstack((new_image, rot90, rot180, rot270))
-            images.append(stacked)
+            images.append(new_image)
+            for i in range(1, 4):
+                images.append(np.rot90(new_image, i))
+            # rot90 = np.rot90(new_image, 1)
+            # rot180 = np.rot90(new_image, 2)
+            # rot270 = np.rot90(new_image, 3)
+            # stacked = np.dstack((new_image, rot90, rot180, rot270))
+            # images.append(stacked)
         data = np.array(images)
 
     if as_tensor:
