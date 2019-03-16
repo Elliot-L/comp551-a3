@@ -25,14 +25,16 @@ def load_training_labels( filepath=os.path.join( os.getcwd(), 'train_labels.csv'
         return torch.tensor( np.array( labels.Category.values, dtype=np.float32 ), dtype=torch.long )
     else:
         return labels
-    
-def load_training_data( filepath=os.path.join( os.getcwd(), 'train_images.pkl' ), as_tensor=False ):
+
+
+def load_training_data(filepath=os.path.join(os.getcwd(), 'train_images.pkl'), as_tensor=False, return_rotated=False):
     """
     Wrapper around pickle.load with the appropriate args.
 
     Arguments:
 
-        filepath: path to train_labels.csv 
+        filepath: path to train_labels.csv
+        return_rotated: will cause the returned data to have 4 channels instead of 1, channels 2,3,4 with rotated images
 
     Returns:
 
@@ -40,7 +42,18 @@ def load_training_data( filepath=os.path.join( os.getcwd(), 'train_images.pkl' )
     """
     with open( filepath, 'rb' ) as handle:
         data = pickle.load( handle )
-    
+
+    if return_rotated:
+        images = list()
+        for arr in data:
+            new_image = arr.copy()
+            rot90 = np.rot90(new_image, 1)
+            rot180 = np.rot90(new_image, 2)
+            rot270 = np.rot90(new_image, 3)
+            stacked = np.dstack((new_image, rot90, rot180, rot270))
+            images.append(stacked)
+        data = np.array(images)
+
     if as_tensor:
         return torch.tensor( data )
     
