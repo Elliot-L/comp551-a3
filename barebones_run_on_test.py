@@ -3,7 +3,7 @@
 
 from __future__ import print_function
 
-import os, argparse
+import os, argparse, pickle
 
 from tqdm import tqdm
 from datetime import datetime
@@ -48,31 +48,43 @@ def run_on_test( model, device, test_loader, output_file_path, number_of_padding
     
     print( f">>> Wrote predictions in {output_file_path} \n" )
 
+def compute_features_only( model, device, test_loader, number_of_padding_arrays ):
+
+    model.eval()
+    outputs, instance_row_indx_list = None, []
+    with torch.no_grad():
+        for batch_idx, data in tqdm( enumerate( test_loader ) ):
+            data = data.unsqueeze( 1 )
+            data = data.to( device )
+            output = model( data ) # make classification
+
+            if batch_idx == 0:
+                outputs = output.data.numpy()
+                instance_row_indx_list.extend( [ batch_element_indx + ( batch_idx * test_loader.batch_size ) for batch_element_indx in range( test_loader.batch_size ) ] )
+            else:
+                outputs = np.vstack( ( outputs, output.data.numpy() ) )
+                instance_row_indx_list.extend( [ batch_element_indx + ( batch_idx * test_loader.batch_size ) for batch_element_indx in range( test_loader.batch_size ) ] )
+
+    return outputs[:-number_of_padding_arrays,:], instance_row_indx_list[:-number_of_padding_arrays]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Runs a PyTorch model on the test Modified MNIST dataset')
-    parser.add_argument('--path-to-model-savefile', type=str, required=True,
+    parser.add_argument('--path-to-model-savefile', nargs='+', type=str, required=True,
                         help="path to the model save file, should be in /pickled-params/<something>/<timestamp>_model.savefile")
     parser.add_argument('--model-batch-size', type=int, default=64,
                         help='batch size for model (default: 64)')
+    parser.add_argument('--n-models', type=int, default=2,
+                        help='number of models to train.')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # hard-coded parameters start here
-    model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
-    
+    print( ">>> Have you checked that the model you are using is the same model as the one(s) you trained with?" )
     # useful reference for debugging
     # batch_size = 64
-    # path_to_mode_savefile = os.path.abspath( r"C:\Users\Samy\Dropbox\Samy_Dropbox\MSc\winter-2019-courses\COMP-551\mini-project-3\comp551-a3\pickled-params\2019-03-13_22-33_model.savefile" )
+    # path_to_model_savefile = os.path.abspath( r"C:\Users\Samy\Dropbox\Samy_Dropbox\MSc\winter-2019-courses\COMP-551\mini-project-3\comp551-a3\pickled-params\2019-03-13_22-33_model.savefile" )
     # hard-coded parameters end here
-        
-    # load learned parameters
     
-    model.load_state_dict( torch.load( args.path_to_model_savefile ) )
-    #model.load_state_dict( torch.load( path_to_mode_savefile ) )
-    print( ">>> Loaded model\n\n" )
-
     test_dataset, number_of_padding_arrays = load_testing_data( as_tensor=True )
     print( ">>> Loaded test dataset" )
 
@@ -88,10 +100,49 @@ if __name__ == '__main__':
         #batch_size=batch_size,
         shuffle=False
     )
-    
-    output_file_path = os.path.join( os.path.dirname( args.path_to_mode_savefile ), 'test_set_predictions.csv' ) 
 
-    print( ">>> Evaluating on test dataset" )
-    run_on_test( model, device, test_loader, output_file_path, number_of_padding_arrays )
-   
-    print( ">>> Finished" )
+    start_timestamp = datetime.now().strftime( '%Y-%m-%d_%H-%M' )
+
+
+    # load learned parameters
+    if args.n_models == 1:
+        # hard-coded parameters start here
+        model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
+        # hard-coded parameters end here
+        model.load_state_dict( torch.load( args.path_to_model_savefile ) )
+
+        print( ">>> Loaded model\n\n" )
+        
+        output_file_path = os.path.join( os.path.dirname( args.path_to_model_savefile ), f'{start_timestamp}_test_set_predictions.csv' ) 
+
+        print( ">>> Evaluating on test dataset" )
+        _ = run_on_test( model, device, test_loader, output_file_path, number_of_padding_arrays )
+    
+        print( ">>> Finished" ) 
+    else:
+        
+        output_file_path = os.path.join( os.path.dirname( args.path_to_model_savefile[0] ), f'{start_timestamp}_test_set_features_array.pickle' ) 
+
+        compiled_features_array = None
+        for e, model_savefile in enumerate( args.path_to_model_savefile ):
+            model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
+            model.load_state_dict( torch.load( model_savefile ) )
+            
+            print( f">>> Loaded model {e+1} / {len( args.path_to_model_savefile)}\n" )
+            
+            if e == 0:
+                model_outputs, instance_row_indx_list = compute_features_only( model, device, test_loader, number_of_padding_arrays )
+                input( model_outputs.shape )
+                input( len( instance_row_indx_list ) )
+                compiled_features_array = np.hstack( ( model_outputs, np.array( instance_row_indx_list ).reshape( len( instance_row_indx_list ), -1 ) ) )
+            else:
+                model_outputs, _ = compute_features_only( model, device, test_loader, number_of_padding_arrays )
+                compiled_features_array = np.hstack( ( model_outputs, compiled_features_array ) )
+        
+        
+        with open( output_file_path, 'wb' ) as predictions_file:
+            pickle.dump( compiled_features_array, predictions_file, protocol=pickle.HIGHEST_PROTOCOL )
+        
+        print( f">>> Saved feature array (with the row indx as the last row) in:\n{output_file_path}")
+
+
