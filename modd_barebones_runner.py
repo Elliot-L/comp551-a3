@@ -17,20 +17,21 @@ import torch.nn as nn
 import torchvision
 
 from torchvision import datasets, transforms
-from logger import Logger
+
 from torch.utils.data import DataLoader, TensorDataset
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 
 # from tensorboardX import SummaryWriter
 
 # local files
+from logger import Logger
 from data_loader import load_training_data, load_training_labels
 from some_model_classes import *
 from biggest_bbox_extractor import cut_out_dom_bbox
 
 def train(args, model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, minibatch_size, logger):
     model.train()
-    outputs, targets = None, None
+    outputs, targets, original_dataset_indices = None, None, None
     for batch_idx, (data, target) in enumerate(train_loader):
         # unsqueeze(x) adds a dimension in the xth-position from the left to deal with the Channels argument of the Conv2d layers
         data = data.unsqueeze( 1 )
@@ -42,11 +43,12 @@ def train(args, model, loss_fn, device, train_loader, validation_loader, optimiz
         optimizer.step()
         
         if batch_idx == 0:
-            outputs = output.data.numpy()
-            targets = target.data.numpy()
+            outputs = output.clone().detach().data.numpy()
+            targets = target.clone().detach().data.numpy()
+            original_dataset_indices = None
         else:
-            outputs = np.vstack( ( outputs, output.data.numpy() ) )
-            targets = np.hstack( ( targets, target.data.numpy() ) )
+            outputs = np.vstack( ( outputs, output.clone().detach().data.numpy() ) )
+            targets = np.hstack( ( targets, target.clone().detach().data.numpy() ) )
         
 
         if ( batch_idx + 1 ) % args.log_interval == 0:
@@ -241,11 +243,9 @@ if __name__ == '__main__':
                         help='input batch size for training (default: 64)')
     parser.add_argument('--l2', type=float, default=0.0001, metavar='N',
                         help='weight_decay parameter sent to optimizer (default: 0.0001)')
-    parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
-                        help='input batch size for testing (default: 1000)')
     parser.add_argument('--validation-split-fraction', type=float, default=0.2, metavar='V',
                         help='the fraction (0.#) of the training dataset to set aside for validation')
-    parser.add_argument('--epochs', type=int, default=2, metavar='N',
+    parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',
                         help='learning rate (default: 0.001)')
@@ -263,8 +263,14 @@ if __name__ == '__main__':
                         help='For Saving the current Model')
     parser.add_argument('--verbose', type=bool, default=True,
                         help='boolean indicator of verbosity')
-    parser.add_argument('--n-models', type=int, default=3,
+    parser.add_argument('--n-models', type=int, default=1,
                         help='number of models to train')
+    parser.add_argument('--training-loader-pickle', type=str, default=None,
+                        help='path to the pickled training loader to use (essential for meta-classification)')
+    parser.add_argument('--validating-loader-pickle', type=str, default=None,
+                        help='path to the pickled validating loader to use (essential for meta-classification)')
+    parser.add_argument('--save-loaders', type=bool, default=False,
+                        help='whether to save the training and validating data loaders for re-use (essential for meta-classification)')
     parser.add_argument('--merge-train-validate-outputs', type=bool, default=False,
                         help='whether to join the predictions on the training set with those of the validation set')
     args = parser.parse_args()
@@ -317,28 +323,49 @@ if __name__ == '__main__':
         print( f">>> Number of validation instances: {split}" )
 
     if args.verbose:
-        print( f">>> Randomizing dataset prior to splitting" )
-
+        print( f">>> Randomizing dataset prior to splitting (according to args.seed)" )
+    
     np.random.seed( args.seed )
     np.random.shuffle( indices )
     train_indices, val_indices = indices[split:], indices[:split]
 
-    # Creating PT data samplers and loaders:
-    train_sampler = SubsetRandomSampler( train_indices )
-    valid_sampler = SubsetRandomSampler( val_indices )
-
-    train_loader = torch.utils.data.DataLoader(
+    train_loader, validation_loader = None, None # dummy declarations
+    
+    if args.training_loader_pickle:
+        with open( args.training_loader_pickle, 'rb' ) as handle:
+            train_loader = pickle.load( handle ) 
+        print( f">>> Loaded {args.training_loader_pickle}" )
+    else:
+        train_sampler = SequentialSampler( train_indices )
+        train_loader = torch.utils.data.DataLoader(
         tensor_dataset, 
         batch_size=args.batch_size, 
         sampler=train_sampler
         # shuffle=True # already shuffled
     )
-    validation_loader = torch.utils.data.DataLoader(
-        tensor_dataset, 
-        batch_size=args.batch_size,
-        sampler=valid_sampler
-        # shuffle=True # already shuffled
-    )
+    
+    if args.validating_loader_pickle:
+        with open( args.validating_loader_pickle, 'rb' ) as handle:
+            validation_loader = pickle.load( handle ) 
+        print( f">>> Loaded {args.validating_loader_pickle}" )
+    else:
+        valid_sampler = SequentialSampler( val_indices )
+
+        validation_loader = torch.utils.data.DataLoader(
+            tensor_dataset, 
+            batch_size=args.batch_size,
+            sampler=valid_sampler
+            # shuffle=True # already shuffled
+        )
+    
+    if ( args.training_loader_pickle is None ) and ( args.validating_loader_pickle is None ) and args.save_loaders:
+        with open( "pickled_training_loader.pickle", "wb" ) as handle:
+            pickle.dump( train_loader, handle, protocol=pickle.HIGHEST_PROTOCOL )
+
+        with open( "pickled_validating_loader.pickle", "wb" ) as handle:
+            pickle.dump( validation_loader, handle, protocol=pickle.HIGHEST_PROTOCOL )
+        
+        print( ">>> The training and validating loaders have been pickled.\n" )
 
     if args.verbose:
         print( ">>> Split original dataset into train/validate datasets" )
@@ -394,8 +421,9 @@ if __name__ == '__main__':
         print( f"\nThe log file will be saved in {logpath.__str__()}\n")
 
     # Model definition
-    # best performing model: model = Elliot_Model().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
-    model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
+    # best performing model: 
+    model = Elliot_Model().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
+    # model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some pytorch expected type peculiarities
     if args.MNIST_sanity_check == True:
         model = Other_MNIST_SANITY_CHECK_CNN().to( device ) # _not_ casting it to double because of some pytorch expected type peculiarities
 
@@ -416,23 +444,34 @@ if __name__ == '__main__':
     # all_corresponding_targets: a 40,000 target numpy vector containing the label for each row in all_models_final_outputs
     all_models_final_outputs, all_corresponding_targets = None, None 
 
-    for epoch in range( args.epochs ):
-        if args.MNIST_sanity_check == True:
+    if args.MNIST_sanity_check == True:
+        for epoch in range( args.epochs ):
             sanity_check_train( args, model, device, train_loader, optimizer, epoch, ( 1.0 - args.validation_split_fraction ), logger )
             sanity_check_validate( args, model, device, validation_loader, epoch, logger, args.validation_split_fraction )
-        
-        else:
-            if args.n_models > 1:
-                
-                for model_iteration, this_model in enumerate( models ):
-                    print( f">>> training model {model_iteration+1} of {args.n_models}" )
-                    training_output, training_targets = train(args, this_model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, args.batch_size, loggers[model_iteration] )
-                    # training_output is a ( dataset_length * training_fraction ) x classes numpy array
-                    # training_targets is a ( dataset_length * training_fraction ) numpy vector
 
-                    validating_output, validating_targets = validate(args, this_model, loss_fn, device, validation_loader, epoch, loggers[model_iteration], args.validation_split_fraction )
-                    # validating_output is a ( dataset_length * validating_fraction ) x classes numpy array
-                    # training_targets is a ( dataset_length * training_fraction ) numpy vector
+    else: 
+        if args.n_models == 1:
+            
+            for epoch in range( args.epochs ):
+                training_output, training_targets = train( args, model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, args.batch_size, logger )
+                validating_output, validating_targets = validate( args, model, loss_fn, device, validation_loader, epoch, logger, args.validation_split_fraction )
+
+                if epoch == ( args.epochs - 1 ): # we only care about the last epoch's output
+                    all_models_final_outputs = np.vstack( ( training_output, validating_output ) )
+                    all_corresponding_targets = np.hstack( ( training_targets, validating_targets ) ) # need to hstack vectors
+             
+        else:
+            print( "This doesn't work... Exiting now..." ) 
+            raise SystemExit
+
+            for model_iteration in range( args.n_models ):
+                this_train_loader, this_validation_loader = deepcopy( train_loader ), deepcopy( validation_loader )
+                this_model = Elliot_Model().to( device ).double()
+                print( f">>> training model {model_iteration+1} of {args.n_models}" )
+
+                for epoch in range( args.epochs ):
+                    training_output, training_targets = train(args, this_model, loss_fn, device, this_train_loader, this_validation_loader, optimizer, epoch, args.batch_size, loggers[model_iteration] )
+                    validating_output, validating_targets = validate(args, this_model, loss_fn, device, this_validation_loader, epoch, loggers[model_iteration], args.validation_split_fraction )
                     
                     if epoch == ( args.epochs - 1 ): # we only care about the last epoch's output
                         if model_iteration == 0:
@@ -441,16 +480,8 @@ if __name__ == '__main__':
                             
                         else:
                             all_models_final_outputs = np.hstack( ( all_models_final_outputs, np.vstack( ( training_output, validating_output ) ) ) ) # hstack is not a typo
-                            
-
-                #all_models_final_outputs = np.hstack( tuple( [ mod_preds for mod_preds in all_models_outputs ] ) )
-                #all_corresponding_targets = np.array( all_corresponding_targets ).flatten()
-            
-            else:
-                train(args, model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, args.batch_size, logger)
-                _ = validate(args, model, loss_fn, device, validation_loader, epoch, logger, args.validation_split_fraction )
-
-
+    
+    # Saving output
     if (args.save_model):
 
         if args.n_models > 1:
@@ -495,6 +526,43 @@ if __name__ == '__main__':
         else:
             torch.save( model.state_dict(), os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_model.savefile' ) )
         
+            if args.merge_train_validate_outputs:
+                pickle_path = os.path.join( os.getcwd(), 'pickled-params', start_timestamp+"_merged_training_and_validating_outputs_and_targets.pickle" )
+                
+                with open( pickle_path, 'wb' ) as meta_clf_feature_mat:
+                    pickle.dump( np.hstack( ( all_models_final_outputs, all_corresponding_targets.reshape( -1, 1 ) ) ) , meta_clf_feature_mat, protocol=pickle.HIGHEST_PROTOCOL )
+
+                print( f">>> The <features from training & validating><labels from training & validating> matrix pickle for meta-classification is saved under\n{pickle_path}" )
+            
+            else:                
+                training_and_validating_outputs =  np.hstack( ( all_models_final_outputs, all_corresponding_targets.reshape( -1, 1 ) ) )
+
+                training_indices = range( 0, int( len( train_loader.dataset ) * ( 1.0 - args.validation_split_fraction ) ) )
+                validating_indices = range( max( training_indices )+1, len( train_loader.dataset ) )
+
+                for m in range( args.n_models ):
+                    column_range = list( range( m*10, (m+1)*10 ) )
+                    column_range.append( training_and_validating_outputs.shape[1]-1 )
+                    output_subarray_from_training = training_and_validating_outputs[ training_indices, : ]
+                    output_subarray_from_training = output_subarray_from_training[ :, column_range ]
+                    
+                    output_subarray_from_validating = training_and_validating_outputs[ validating_indices, : ]
+                    output_subarray_from_validating = output_subarray_from_validating[ :, column_range ]
+
+                    pickle_path = os.path.join( os.getcwd(), 'pickled-params', start_timestamp+f"_training_outputs_and_targets.pickle" )
+                    with open( pickle_path, 'wb' ) as handle:
+                        pickle.dump( output_subarray_from_training , handle, protocol=pickle.HIGHEST_PROTOCOL )
+                    
+                    print( f">>> The <features from training><labels from training> matrix pickle for meta-classification is saved under\n{pickle_path}" )
+
+                    pickle_path = os.path.join( os.getcwd(), 'pickled-params', start_timestamp+f"_validating_outputs_and_targets.pickle" )
+                    with open( pickle_path, 'wb' ) as handle:
+                        pickle.dump( output_subarray_from_validating , handle, protocol=pickle.HIGHEST_PROTOCOL )
+                    
+                    print( f">>> The <features from validating><labels from validating> matrix pickle for meta-classification is saved under\n{pickle_path}" )
+
+
+
         with open( os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_params.savefile' ), 'w' ) as params_file:
             params_file.write( args.__repr__() )
             params_file.write( '\n' )

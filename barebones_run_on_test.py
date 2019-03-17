@@ -73,8 +73,7 @@ if __name__ == '__main__':
                         help="path to the model save file, should be in /pickled-params/<something>/<timestamp>_model.savefile")
     parser.add_argument('--model-batch-size', type=int, default=64,
                         help='batch size for model (default: 64)')
-    parser.add_argument('--n-models', type=int, default=2,
-                        help='number of models to train.')
+
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -97,17 +96,15 @@ if __name__ == '__main__':
     test_loader = torch.utils.data.DataLoader( 
         test_dataset,
         batch_size=args.model_batch_size,
-        #batch_size=batch_size,
         shuffle=False
     )
 
     start_timestamp = datetime.now().strftime( '%Y-%m-%d_%H-%M' )
 
-
     # load learned parameters
-    if args.n_models == 1:
+    if len( args.path_to_model_savefile ) == 1:
         # hard-coded parameters start here
-        model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
+        model = Elliot_Model().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
         # hard-coded parameters end here
         model.load_state_dict( torch.load( args.path_to_model_savefile ) )
 
@@ -119,13 +116,16 @@ if __name__ == '__main__':
         _ = run_on_test( model, device, test_loader, output_file_path, number_of_padding_arrays )
     
         print( ">>> Finished" ) 
+    
     else:
         
         output_file_path = os.path.join( os.path.dirname( args.path_to_model_savefile[0] ), f'{start_timestamp}_test_set_features_array.pickle' ) 
 
         compiled_features_array = None
+        
         for e, model_savefile in enumerate( args.path_to_model_savefile ):
-            model = Other_MNIST_CNN().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
+            # hard-coded arguments start here
+            model = Elliot_Model().to( device ).double() # casting it to double because of some  weird pytorch peculiarities
             model.load_state_dict( torch.load( model_savefile ) )
             
             print( f">>> Loaded model {e+1} / {len( args.path_to_model_savefile)}\n" )
@@ -135,6 +135,7 @@ if __name__ == '__main__':
                 input( model_outputs.shape )
                 input( len( instance_row_indx_list ) )
                 compiled_features_array = np.hstack( ( model_outputs, np.array( instance_row_indx_list ).reshape( len( instance_row_indx_list ), -1 ) ) )
+            
             else:
                 model_outputs, _ = compute_features_only( model, device, test_loader, number_of_padding_arrays )
                 compiled_features_array = np.hstack( ( model_outputs, compiled_features_array ) )
