@@ -41,3 +41,10 @@ description:
     program called from the command line to run a model on a validation or testing dataset and record it's classification output.
 
 # modd_barebones_runner.py
+functions:
+    train, validate, sanity_check_train, sanity_check_validate
+classes:
+    none
+description:
+    program called from the command line to run the Elliot-CNN models on the training set with a validation set
+    and record it's classification output (and perform sanity-check runs on pytorch's MNIST dataset).
