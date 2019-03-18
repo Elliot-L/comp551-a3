@@ -27,7 +27,7 @@ from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 from logger import Logger
 from data_loader import load_training_data, load_training_labels
 from some_model_classes import *
-from biggest_bbox_extractor import cut_out_dom_bbox
+from biggest_bbox_extractor import cut_out_dom_bbox, get_all_rotations
 
 def train(args, model, loss_fn, device, train_loader, validation_loader, optimizer, epoch, minibatch_size, logger):
     model.train()
@@ -241,7 +241,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
-    parser.add_argument('--l2', type=float, default=0.0001, metavar='N',
+    parser.add_argument('--l2', type=float, default=0, metavar='N',
                         help='weight_decay parameter sent to optimizer (default: 0.0001)')
     parser.add_argument('--validation-split-fraction', type=float, default=0.2, metavar='V',
                         help='the fraction (0.#) of the training dataset to set aside for validation')
@@ -253,13 +253,13 @@ if __name__ == '__main__':
                         help='SGD momentum (default: 0.5)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='disables CUDA training')
-    parser.add_argument('--seed', type=int, default=4, metavar='S',
+    parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
     parser.add_argument('--log-interval', type=int, default=100, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--MNIST-sanity-check', type=bool, default=False,
                         help="Whether to run the model on PyTorch's MNIST dataset first")
-    parser.add_argument('--save-model', action='store_true', default=True,
+    parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
     parser.add_argument('--verbose', type=bool, default=True,
                         help='boolean indicator of verbosity')
@@ -273,6 +273,10 @@ if __name__ == '__main__':
                         help='whether to save the training and validating data loaders for re-use (essential for meta-classification)')
     parser.add_argument('--merge-train-validate-outputs', type=bool, default=False,
                         help='whether to join the predictions on the training set with those of the validation set')
+    parser.add_argument('--rotate-images', type=bool, default=False,
+                        help='whether to include all rotated versions of every image in the dataset')
+    parser.add_argument('--preprocess-images', type=bool, default=False,
+                        help='whether to preprocess the images')
     args = parser.parse_args()
         
     # Device configuration
@@ -300,13 +304,32 @@ if __name__ == '__main__':
         training_data_raw = load_training_data( 'train_images.pkl', as_tensor=False ) 
         # for debugging 
         # training_data_raw = load_training_data( 'train_images.pkl', as_tensor=True ).double() 
-        cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
-        training_data = torch.stack( cleaned_images )
+        
+        training_data = torch.tensor( training_data_raw ).double()
+        if args.preprocess_images:
+            cleaned_images = [ cut_out_dom_bbox( training_data_raw[i,:,:] )[0] for i in range( training_data_raw.shape[0] ) ]
+            training_data = torch.stack( cleaned_images )
+        
+        if args.rotate_images:
+            rotated_images = []
+            for bbox_img in tqdm( training_data_raw ):
+                rotated_images.extend( get_all_rotations( bbox_img ) )
+            training_data = rotated_images
+
         # for debugging 
         #training_data = training_data_raw
         if args.verbose:
             print( ">>> Loaded and cleaned (extracted) training data" )
+        
         training_labels = load_training_labels( 'train_labels.csv', as_tensor=True ).long()
+        
+        if args.rotate_images:
+            training_labels_one_set = load_training_labels( 'train_labels.csv', as_tensor=False )
+            training_labels = torch.tensor( np.hstack( ( training_labels_one_set, training_labels_one_set, training_labels_one_set, training_labels_one_set ) ) ).long()
+        
+        print( training_data.shape )
+        print( training_labels.shape )
+        
         tensor_dataset = TensorDataset( training_data, training_labels )
         assert len( training_labels ) == len( training_data )
         if args.verbose:
@@ -433,7 +456,7 @@ if __name__ == '__main__':
     
     # Loss and optimizer
     # optimizer = torch.optim.Adam( model.parameters(), lr=args.lr )
-    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr, weight_decay=args.l2 )  # adding l2 loss
+    optimizer = torch.optim.Adam( model.parameters(), lr=args.lr)  # adding l2 loss
 
     loss_fn = nn.CrossEntropyLoss() 
 
@@ -560,8 +583,6 @@ if __name__ == '__main__':
                         pickle.dump( output_subarray_from_validating , handle, protocol=pickle.HIGHEST_PROTOCOL )
                     
                     print( f">>> The <features from validating><labels from validating> matrix pickle for meta-classification is saved under\n{pickle_path}" )
-
-
 
         with open( os.path.join( os.getcwd(), 'pickled-params', start_timestamp+'_params.savefile' ), 'w' ) as params_file:
             params_file.write( args.__repr__() )

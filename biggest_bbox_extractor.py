@@ -7,6 +7,29 @@ from skimage.measure import find_contours
 # from skimage.util import invert
 from skimage.transform import resize
 
+def get_all_rotations( image ):
+    """
+    Returns a list of the 4 possible 90-degree rotations of the input array/torch tensor (image).
+    """
+    images = list()
+    torch_tensor_io = False 
+    if isinstance( image, torch.Tensor ):
+        image = image.numpy()
+        torch_tensor_io = True
+
+    new_image = image.copy()
+    images.append( new_image )
+    for i in range( 1, 4 ):
+        images.append( np.rot90( new_image, i ).copy() )
+    # rot90 = np.rot90(new_image, 1)
+    # rot180 = np.rot90(new_image, 2)
+    # rot270 = np.rot90(new_image, 3)
+    # stacked = np.dstack((new_image, rot90, rot180, rot270))
+    # images.append(stacked)
+    if torch_tensor_io:
+        return [ torch.tensor( img ) for img in images ]
+    else:
+        return images
 
 def cut_out_dom_bbox( arr:np.ndarray, digit_color_threshold=0.9, output_dim=64, bbox_offset=2, as_tensor=True ):
     """

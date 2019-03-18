@@ -2,6 +2,8 @@ import os, pickle, torch, random
 import pandas as pds 
 import numpy as np
 
+from tqdm import tqdm
+
 def load_training_labels( filepath=os.path.join( os.getcwd(), 'train_labels.csv' ), as_tensor=False ):
     """
     Wrapper around pds.read_csv with the appropriate args.
@@ -24,15 +26,17 @@ def load_training_labels( filepath=os.path.join( os.getcwd(), 'train_labels.csv'
     if as_tensor:
         return torch.tensor( np.array( labels.Category.values, dtype=np.float32 ), dtype=torch.long )
     else:
-        return labels
-    
-def load_training_data( filepath=os.path.join( os.getcwd(), 'train_images.pkl' ), as_tensor=False ):
+        return labels.Category.values
+
+
+def load_training_data(filepath=os.path.join(os.getcwd(), 'train_images.pkl'), as_tensor=False):
     """
     Wrapper around pickle.load with the appropriate args.
 
     Arguments:
 
-        filepath: path to train_labels.csv 
+        filepath: path to train_labels.csv
+        return_rotated: will cause the returned data to have 4 channels instead of 1, channels 2,3,4 with rotated images
 
     Returns:
 
@@ -40,7 +44,7 @@ def load_training_data( filepath=os.path.join( os.getcwd(), 'train_images.pkl' )
     """
     with open( filepath, 'rb' ) as handle:
         data = pickle.load( handle )
-    
+
     if as_tensor:
         return torch.tensor( data )
     
