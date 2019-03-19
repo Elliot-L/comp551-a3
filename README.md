@@ -1,5 +1,13 @@
 # comp551-a3
 
+# logger.py
+functions: 
+    none
+classes:
+    Logger, useful wrapper for TensorFlow's Tensorboard display
+description:
+    used to use TensorFlow-like tensorboards in visualization.
+
 # biggest_bbox_extractor.py
 functions:
     get_all_rotations, cut_out_dom_bbox
@@ -30,7 +38,7 @@ functions:
 classes:
     none
 description:
-    program called from the command line to run a meta-classifier on the predictions of >= 1 CNN model(s)
+    program called from the command line to run a meta-classifier on the saved predictions of >= 1 CNN model(s)
 
 # barebones_run_on_test.py
 functions:
@@ -81,3 +89,15 @@ description:
     cached bottleneck files to train a fully connected layer producing logits equal in number to the target classes.
     Significant hyperparameters can be set via command line arguments. Periodically evaluates on a validation subset
     of the training data, after training for the set number of steps will save the best model as a .pb file
+
+# sample workflow
+1. get the training data, testing data, and training labels in the same directory as these python files.
+2. create the "logs" and "pickled-params" subdirectories in the same directory as these python files.
+3. run 
+$ python modd_barebones_runner.py --save-model --save-loaders True
+4. run (for as many CNN models as you'd wish) 
+$ python modd_barebones_runner.py --save-model --training-loader-pickle <path to pickled training loader> --validating-loader-pickle <path to pickled validation loader>
+5. run 
+$ python barebones_run_on_test.py --path-to-model-savefile <space-delimited absolute paths to all the *model.savefile in ./pickled-params> 
+6. run 
+$ python knn_metaclassifier.py --training-array-pickle-path <space-delimited absolute paths to all the training-dataset output feature files created in step 3/4> --testing-array-pickle-path <space-delimited absolute paths to all the validation-dataset output feature files created in step 3/4/5>
