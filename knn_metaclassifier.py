@@ -112,7 +112,7 @@ def run_on_testing_set( clf, array, output_filepath=None ):
     
     print( f">>> Saved KNN classifications in:\n{output_filepath}" )
 
-def merge_outputs( output_pickled_array_filepaths ):
+def merge_outputs( output_pickled_array_filepaths, join_train_and_val=False ):
     """
     Merges the [ predictions, [label] ] arrays produced by individual CNN models into a single array.
 
@@ -126,15 +126,43 @@ def merge_outputs( output_pickled_array_filepaths ):
                     and whose last column is the actual label of the instance.
 
     """
-    merged_arr = None
-    for e, filepath in enumerate( output_pickled_array_filepaths ):
-        with open( filepath, 'rb' ) as handle:
-            this_models_output = pickle.load( handle )
-        if e == 0:
-            merged_arr = this_models_output[:]
-        else:
-            merged_arr = np.hstack( ( this_models_output[:,:-1], merged_arr ) ) # the -1 is to skip the last column (the actual class target column)
-    return merged_arr
+    if join_train_and_val:
+        merged_arr = None
+        train_and_val_output_pairs = list(
+            zip( 
+                output_pickled_array_filepaths[ : len( output_pickled_array_filepaths )//2 ], 
+                output_pickled_array_filepaths[ len( output_pickled_array_filepaths )//2 : ] 
+            ) 
+        )
+        print( train_and_val_output_pairs )
+        
+        for e, ( train_path, val_path ) in enumerate( train_and_val_output_pairs ):
+            with open( train_path, 'rb' ) as handle:
+                model_train_output = pickle.load( handle )
+            with open( val_path, 'rb' ) as handle:
+                model_val_output = pickle.load( handle )
+            assert model_train_output.shape[1] == model_val_output.shape[1]
+
+            if e == 0:
+                merged_arr = np.vstack( ( model_train_output, model_val_output ) )
+            else:
+                this_models_merged_arr = np.vstack( ( model_train_output, model_val_output ) )[:,:-1]
+                print( f"this model's shape = {this_models_merged_arr.shape}, merged_arr shape = {merged_arr.shape} " )
+                
+                merged_arr = np.hstack( ( this_models_merged_arr, merged_arr ) )
+            print( f"merged_arr now has shape {merged_arr.shape}" )
+        
+        return merged_arr 
+    else:
+        merged_arr = None
+        for e, filepath in enumerate( output_pickled_array_filepaths ):
+            with open( filepath, 'rb' ) as handle:
+                this_models_output = pickle.load( handle )
+            if e == 0:
+                merged_arr = this_models_output[:]
+            else:
+                merged_arr = np.hstack( ( this_models_output[:,:-1], merged_arr ) ) # the -1 is to skip the last column (the actual class target column)
+        return merged_arr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='KNN meta-classifier')
@@ -148,7 +176,7 @@ if __name__ == '__main__':
                         help='whether the input testting-array-pickle-path represents the testing set (True) or the validation set (False)')
     args = parser.parse_args()
 
-    training_array = merge_outputs( args.training_array_pickle_path )
+    training_array = merge_outputs( args.training_array_pickle_path, join_train_and_val=args.is_testset )
     print( f">>> The training array's shape is {training_array.shape}\n")
     # if running with validation set
     # validation_array = merge_outputs( args.testing_array_pickle_path )
