@@ -1,3 +1,11 @@
+
+"""
+COMP-551 instructors: please note this file is NOT our original work. This comes from the tutorial on transfer learning
+available on the tensorflow website with only very minor tweaks. Citation / source URL is given in the written report.
+
+"""
+
+
 # Copyright 2015 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
